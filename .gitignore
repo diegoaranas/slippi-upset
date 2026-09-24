@@ -5,19 +5,12 @@ desktop.ini
 *~
 .*.swp
 
-# Python
-__pycache__/
-*.pyc
-.venv/
-venv/
+# Go build output
+/upset
+/upset.exe
 
 # Local state: your personal best-win record, rewritten while playing
 record.json
 
-# Nintendo audio: not redistributed, fetched locally by get_sounds.py
+# Nintendo audio: not redistributed, fetched on first run
 sounds/
-
-# PyInstaller output
-build/
-dist/
-*.spec

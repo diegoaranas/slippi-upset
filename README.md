@@ -15,33 +15,40 @@ play, and it reacts to who you're playing and whether you beat them:
 Only the first matching win sound plays. Losses, your own quits and doubles are silent.
 Ratings come from slippi.gg, so it works for ranked and unranked games alike.
 
-## Download (no Python needed)
+## Download
 
 1. Download `upset.exe` from the [latest release](https://github.com/diegoaranas/slippi-upset/releases/latest).
 2. Put it in its own folder. It saves its sounds and your record next to itself.
 3. Double-click it before you play and leave the window open.
 
-You need Windows and Slippi Launcher (logged in). Your connect code and replay
-folder are detected automatically.
+You need Windows, Linux or macOS and Slippi Launcher (logged in). Your connect
+code and replay folder are detected automatically.
+
+On Linux and macOS there's no prebuilt download yet; build it (below) and run
+`./upset`. On Linux, sounds play through `pw-play`, `paplay` or `aplay`, whichever
+is installed; on macOS through `afplay`.
 
 On first run it downloads the announcer clips. They're Nintendo's, so they aren't
 included here; it fetches the community rips from [The Sounds Resource](https://sounds.spriters-resource.com/gamecube/ssbm/).
 
 Windows may warn that the app is from an unknown publisher, because it isn't
-code-signed. Click **More info → Run anyway**, or run it from Python instead (below).
+code-signed. Click **More info → Run anyway**, or build it yourself (below).
 
-## Run from Python
+## Build from source
 
-Requires **Python 3.9+**. Standard library only, nothing to install.
+Requires **Go 1.26+**. The only dependency is [golang.org/x/sys](https://pkg.go.dev/golang.org/x/sys/windows) for Windows system calls.
 
 ```
 git clone https://github.com/diegoaranas/slippi-upset
 cd slippi-upset
-python upset.py
+go build .
 ```
 
+That builds `upset.exe` on Windows or `upset` on Linux and macOS. To build the Windows .exe
+from another system: `GOOS=windows GOARCH=amd64 go build .`
+
 The first run downloads the clips to `sounds/` at half volume. To re-download
-them at full volume: `python get_sounds.py --volume 1`.
+them at full volume: `upset --get-sounds --volume 1`.
 
 ```
 Watching C:\Users\you\Documents\Slippi for new games as ABCD#123... (Ctrl+C to stop)
@@ -52,32 +59,29 @@ Game_20260923T221106.slp: WIN vs EFGH#456  them 2210.4 (peak 2301.7)  you 2146.6
 To check it on a game you've already played:
 
 ```
-python upset.py --test "C:\path\to\Game_20260923T221106.slp"
+upset --test "C:\path\to\Game_20260923T221106.slp"
 ```
 
 ## Configuration
 
-Everything is at the top of `upset.py` (Python version only):
+Everything is at the top of `main.go` (rebuild after changing it):
 
-- `MY_CODE` / `REPLAY_DIR`: detected from Slippi Launcher. Set them only if detection fails or you keep replays somewhere unusual.
-- `SOUND_*`: any `.wav` file works. `SOUND_CONNECT` plays for every *other* new opponent; it's off by default (try `sounds/versus.wav`).
+- `myCode` / `replayDir`: detected from Slippi Launcher. Set them only if detection fails or you keep replays somewhere unusual.
+- `sound*`: any `.wav` file works. `soundConnect` plays for every *other* new opponent; it's off by default (try `sounds/versus.wav`).
 
-Your record is kept in `record.json` next to the script. It starts at 0, so
+Your record is kept in `record.json` next to the program. It starts at 0, so
 your first win sets it. Delete the file to reset.
 
 ## How it works
 
-Slippi writes a replay file as each game is played. The script checks the
+Slippi writes a replay file as each game is played. It checks the
 replay folder once a second:
 
 - **Game starts:** reads the first 2 KB of the new file to get the connect codes.
-- **Game ends:** Slippi fills in the replay's length header. The script then reads the replay once to find the winner and looks up both players' ratings.
-
-To build the .exe yourself: `pip install pyinstaller`, then
-`pyinstaller --onefile --name upset --hidden-import get_sounds upset.py`.
+- **Game ends:** Slippi fills in the replay's length header. It then reads the replay once to find the winner and looks up both players' ratings.
 
 It makes no network requests during a game and runs at below-normal CPU
-priority, so it doesn't affect Dolphin. It uses only the Python standard library.
+priority, so it doesn't affect Dolphin.
 
 Ratings come from the same API the slippi.gg profile pages use. It's not an
 official public API, so it could change without notice.
