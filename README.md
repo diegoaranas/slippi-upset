@@ -17,16 +17,20 @@ Ratings come from slippi.gg, so it works for ranked and unranked games alike.
 
 ## Download
 
-1. Download `upset.exe` from the [latest release](https://github.com/diegoaranas/slippi-upset/releases/latest).
+1. Download [`upset_windows_amd64.exe`](https://github.com/diegoaranas/slippi-upset/releases/latest/download/upset_windows_amd64.exe)
+   (Windows), or the `upset_linux_*` / `upset_darwin_*` archive for your system from the
+   [latest release](https://github.com/diegoaranas/slippi-upset/releases/latest).
 2. Put it in its own folder. It saves its sounds and your record next to itself.
-3. Double-click it before you play and leave the window open.
+3. Run it before you play (double-click on Windows, `./upset` elsewhere) and leave the window open.
 
 You need Windows, Linux or macOS and Slippi Launcher (logged in). Your connect
 code and replay folder are detected automatically.
 
-On Linux and macOS there's no prebuilt download yet; build it (below) and run
-`./upset`. On Linux, sounds play through `pw-play`, `paplay` or `aplay`, whichever
+On Linux, sounds play through `pw-play`, `paplay` or `aplay`, whichever
 is installed; on macOS through `afplay`.
+
+macOS blocks downloaded apps that aren't signed. After extracting, run
+`xattr -d com.apple.quarantine upset` once to allow it.
 
 On first run it downloads the announcer clips. They're Nintendo's, so they aren't
 included here; it fetches the community rips from [The Sounds Resource](https://sounds.spriters-resource.com/gamecube/ssbm/).

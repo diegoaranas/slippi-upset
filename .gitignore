@@ -8,6 +8,7 @@ desktop.ini
 # Go build output
 /upset
 /upset.exe
+dist/
 
 # Local state: your personal best-win record, rewritten while playing
 record.json
