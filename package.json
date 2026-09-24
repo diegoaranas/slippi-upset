@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "description": "Release tooling only (the app is Go): semantic-release, locked by package-lock.json. See AGENTS.md.",
+  "devDependencies": {
+    "@semantic-release/exec": "^7.1.0",
+    "semantic-release": "^25.0.9"
+  },
+  "release": {
+    "branches": ["main"],
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      ["@semantic-release/exec", { "prepareCmd": "go run ./tools/build ${nextRelease.version}" }],
+      ["@semantic-release/github", {
+        "assets": ["dist/*"],
+        "successComment": false,
+        "failComment": false,
+        "releasedLabels": false
+      }]
+    ]
+  }
+}

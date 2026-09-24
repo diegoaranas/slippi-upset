@@ -9,35 +9,34 @@ permissions:
   contents: write
 
 jobs:
-  test:
+  # One job, so the Go build cache it saves includes the release builds.
+  release:
     runs-on: ubuntu-latest
+    env:
+      # Only the upstream repo publishes; forks and PRs stop after the tests.
+      PUBLISH: ${{ github.event_name == 'push' && github.repository == 'diegoaranas/slippi-upset' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # semantic-release needs the history and tags
       - uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: stable # latest patch release; also refreshes the cache when Go updates
       - run: go vet ./... && GOOS=windows go vet ./... && GOOS=darwin go vet ./...
       - run: go test ./...
 
-  release:
-    needs: test
-    # Only the upstream repo publishes; forks and PRs just run the tests.
-    if: github.event_name == 'push' && github.repository == 'diegoaranas/slippi-upset'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-      - uses: actions/setup-node@v7
+      - if: env.PUBLISH == 'true'
+        uses: actions/setup-node@v7
         with:
           node-version: lts/*
+          cache: npm
+      - if: env.PUBLISH == 'true'
+        run: npm ci
 
       # Picks the next version from the Conventional Commits since the last tag, builds
       # every platform (tools/build) and creates the GitHub release with the builds attached
-      # (.releaserc.yaml). No release-worthy commits = no release.
-      - run: npx --yes -p semantic-release@25 -p @semantic-release/exec@7 semantic-release
+      # (config in package.json). No release-worthy commits = no release.
+      - if: env.PUBLISH == 'true'
+        run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

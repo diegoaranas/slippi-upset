@@ -5,10 +5,11 @@ desktop.ini
 *~
 .*.swp
 
-# Go build output
+# Build output
 /upset
 /upset.exe
 dist/
+node_modules/
 
 # Local state: your personal best-win record, rewritten while playing
 record.json

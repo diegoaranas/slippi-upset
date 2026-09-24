@@ -6,7 +6,8 @@ Releases are fully automated. Every push to `main` runs
 [semantic-release](https://semantic-release.gitbook.io), which reads the commit
 messages since the last tag to decide the next version and creates the GitHub
 release with Windows, Linux and macOS binaries attached (`.github/workflows/release.yml`,
-`.releaserc.yaml`, `tools/build`).
+the `release` config in `package.json`, `tools/build`). `package.json` exists only for
+this release tooling; the app itself is plain Go and needs no Node.
 
 **A commit that doesn't follow the format is invisible to the release builder:**
 it ships no release and is left out of the release notes. So every commit on
