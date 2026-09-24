@@ -47,6 +47,8 @@ var (
 
 // -----------------------------------------------------------------------------
 
+var version = "dev" // set by GoReleaser
+
 var here = exeDir()
 
 func exeDir() string {
@@ -344,7 +346,13 @@ func main() {
 	test := flag.String("test", "", "check a `replay` you've already played instead of watching")
 	getSounds := flag.Bool("get-sounds", false, "(re)download the announcer clips to sounds/ and exit")
 	volume := flag.Float64("volume", 0.5, "volume for --get-sounds (1 = original)")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("upset", version)
+		return
+	}
 
 	if *getSounds {
 		if err := downloadSounds(inHere("sounds"), *volume); err != nil {
