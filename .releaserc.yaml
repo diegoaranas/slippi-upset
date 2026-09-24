@@ -1,0 +1,14 @@
+branches: [main]
+
+plugins:
+  - "@semantic-release/commit-analyzer"
+  - "@semantic-release/release-notes-generator"
+  # Builds every platform into dist/, stamped with the new version.
+  - - "@semantic-release/exec"
+    - prepareCmd: go run ./tools/build ${nextRelease.version}
+  # Creates the tag and the GitHub release, with the builds attached.
+  - - "@semantic-release/github"
+    - assets: ["dist/*"]
+      successComment: false # these need extra token permissions
+      failComment: false
+      releasedLabels: false

@@ -47,7 +47,7 @@ var (
 
 // -----------------------------------------------------------------------------
 
-var version = "dev" // set by GoReleaser
+var version = "dev" // set by tools/build
 
 var here = exeDir()
 
