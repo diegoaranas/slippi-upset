@@ -55,5 +55,7 @@ becomes its header, and the body is whatever is in GitHub's merge dialog. So:
 - `go vet ./...` passes, and also with `GOOS=windows` and `GOOS=darwin`: each
   platform has its own `platform_<os>.go` file.
 - `go test ./...` passes.
-- Use only the standard library plus `golang.org/x/sys`. Build with cgo off
-  (`CGO_ENABLED=0`) so cross-compiling needs no C toolchain.
+- Use only the standard library plus `golang.org/x/sys` and `github.com/gopxl/beep/v2`
+  (audio). Build with cgo off (`CGO_ENABLED=0`) so cross-compiling needs no C toolchain;
+  keep `github.com/ebitengine/oto/v3` at v3.5.0 or later, the first release that needs no
+  cgo on Linux.

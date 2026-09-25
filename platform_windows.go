@@ -10,25 +10,7 @@ import (
 )
 
 // Not wrapped by x/sys/windows.
-var (
-	procPlaySound             = windows.NewLazySystemDLL("winmm.dll").NewProc("PlaySoundW")
-	procGetConsoleProcessList = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetConsoleProcessList")
-)
-
-const (
-	sndAsync     = 0x0001
-	sndNoDefault = 0x0002
-	sndFilename  = 0x00020000
-)
-
-// playFile plays a .wav without blocking.
-func playFile(path string) {
-	p, err := windows.UTF16PtrFromString(path)
-	if err != nil {
-		return
-	}
-	procPlaySound.Call(uintptr(unsafe.Pointer(p)), 0, sndFilename|sndAsync|sndNoDefault)
-}
+var procGetConsoleProcessList = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetConsoleProcessList")
 
 // userJSONPaths lists where the netplay Dolphin keeps user.json: the Ishiiruka
 // build and mainline stable, then mainline beta.

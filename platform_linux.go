@@ -3,33 +3,9 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 )
-
-// player is the first installed command-line .wav player: PipeWire, PulseAudio, then ALSA.
-var player = func() []string {
-	for _, p := range [][]string{{"pw-play"}, {"paplay"}, {"aplay", "-q"}} {
-		if _, err := exec.LookPath(p[0]); err == nil {
-			return p
-		}
-	}
-	return nil
-}()
-
-// playFile plays a .wav without blocking.
-func playFile(path string) {
-	if player == nil {
-		fmt.Println("  (no sound: install pw-play, paplay or aplay)")
-		return
-	}
-	cmd := exec.Command(player[0], append(player[1:], path)...)
-	if cmd.Start() == nil {
-		go cmd.Wait()
-	}
-}
 
 // userJSONPaths lists where the netplay Dolphin keeps user.json: the Ishiiruka build,
 // then mainline stable and beta. Dolphin honors XDG_CONFIG_HOME, as does os.UserConfigDir.

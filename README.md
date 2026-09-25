@@ -26,8 +26,8 @@ Ratings come from slippi.gg, so it works for ranked and unranked games alike.
 You need Windows, Linux or macOS and Slippi Launcher (logged in). Your connect
 code and replay folder are detected automatically.
 
-On Linux, sounds play through `pw-play`, `paplay` or `aplay`, whichever
-is installed; on macOS through `afplay`.
+On Linux, sounds play through PulseAudio (or PipeWire's PulseAudio server), falling
+back to ALSA.
 
 macOS blocks downloaded apps that aren't signed. After extracting, run
 `xattr -d com.apple.quarantine upset` once to allow it.
@@ -40,7 +40,8 @@ code-signed. Click **More info → Run anyway**, or build it yourself (below).
 
 ## Build from source
 
-Requires **Go 1.26+**. The only dependency is [golang.org/x/sys](https://pkg.go.dev/golang.org/x/sys/windows) for Windows system calls.
+Requires **Go 1.26+**. Dependencies: [beep](https://github.com/gopxl/beep) to decode and play sounds, and
+[golang.org/x/sys](https://pkg.go.dev/golang.org/x/sys/windows) for Windows system calls. No cgo or C toolchain needed.
 
 ```
 git clone https://github.com/diegoaranas/slippi-upset
@@ -71,7 +72,7 @@ upset --test "C:\path\to\Game_20260923T221106.slp"
 Everything is at the top of `main.go` (rebuild after changing it):
 
 - `myCode` / `replayDir`: detected from Slippi Launcher. Set them only if detection fails or you keep replays somewhere unusual.
-- `sound*`: any `.wav` file works. `soundConnect` plays for every *other* new opponent; it's off by default (try `sounds/versus.wav`).
+- `sound*`: any `.wav`, `.mp3`, `.ogg` or `.flac` file works. `soundConnect` plays for every *other* new opponent; it's off by default (try `sounds/versus.wav`).
 
 Your record is kept in `record.json` next to the program. It starts at 0, so
 your first win sets it. Delete the file to reset.

@@ -4,18 +4,9 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"syscall"
 )
-
-// playFile plays a .wav without blocking.
-func playFile(path string) {
-	cmd := exec.Command("afplay", path)
-	if cmd.Start() == nil {
-		go cmd.Wait()
-	}
-}
 
 // userJSONPaths lists where the netplay Dolphin keeps user.json: the Ishiiruka build,
 // then mainline stable and beta.

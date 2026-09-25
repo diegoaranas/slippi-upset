@@ -30,7 +30,7 @@ var (
 	replayDir   = ""  // e.g. `D:\Replays`; "" = read it from Slippi Launcher's settings
 	pollSeconds = 1.0 // how often to check the replay folder
 
-	// Any .wav file works, relative to the folder upset.exe is in.
+	// Any .wav, .mp3, .ogg or .flac file works, relative to the folder upset.exe is in.
 	// Win sounds, highest precedence first:
 	soundRecord  = "sounds/new_record.wav"      // "A new record!" - highest-rated opponent you've ever beaten
 	soundPeak    = "sounds/incredible.wav"      // "Wow! Incredible!" - opp best season > your best
