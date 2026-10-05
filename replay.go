@@ -76,25 +76,86 @@ func decodeCode(b []byte) string {
 	return string(out)
 }
 
-// startCodes returns connect codes by port from the Game Start event, which Slippi
-// writes as soon as the game begins. Returns nil if it isn't on disk yet.
-func startCodes(path string) map[int]string {
+// matchIDOffset is where Game Start stores the online match ID ("mode.ranked-...",
+// "mode.unranked-...", ...). Replays from before Slippi 3.14 don't have it.
+const matchIDOffset = 0x2BE
+
+// gameStartRanked reports whether a Game Start event is from a Ranked match.
+func gameStartRanked(gs []byte) bool {
+	return len(gs) > matchIDOffset && bytes.HasPrefix(gs[matchIDOffset:], []byte("mode.ranked"))
+}
+
+// Start is what the Game Start event tells us as soon as a game begins.
+type Start struct {
+	Codes  map[int]string
+	Ranked bool
+}
+
+// readStart reads the Game Start event, which Slippi writes as soon as the game
+// begins. ok is false if it isn't on disk yet.
+func readStart(path string) (s Start, ok bool) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil
+		return s, false
 	}
 	defer f.Close()
 	head := make([]byte, 2048)
 	n, _ := io.ReadFull(f, head)
 	if n < 15 {
-		return nil
+		return s, false
 	}
 	raw := head[15:n]
 	sizes, pos := payloadSizes(raw)
 	if sizes == nil || pos >= len(raw) {
-		return nil
+		return s, false
 	}
-	return gameStartCodes(raw[pos:min(len(raw), pos+1+sizes[0x36])])
+	gs := raw[pos:min(len(raw), pos+1+sizes[0x36])]
+	if s.Codes = gameStartCodes(gs); s.Codes == nil {
+		return s, false
+	}
+	s.Ranked = gameStartRanked(gs)
+	return s, true
+}
+
+// quickGame returns the same result as parseGame, but for most replays reads only
+// the first 2 KB (connect codes) and the Game End event at the end of the raw stream.
+// Replays without placements in Game End fall back to the full parse.
+func quickGame(path string) (Game, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return Game{Winner: -1, Quitter: -1}, err
+	}
+	defer f.Close()
+	head := make([]byte, 2048)
+	n, _ := io.ReadFull(f, head)
+	if n < 15 || !bytes.HasPrefix(head, header) {
+		return Game{Winner: -1, Quitter: -1}, errors.New("not a Slippi replay")
+	}
+	rawLen := int(binary.BigEndian.Uint32(head[11:15]))
+	raw := head[15:n]
+	sizes, pos := payloadSizes(raw)
+	endSize, ok := sizes[0x39]
+	if !ok || endSize < 6 || rawLen < 1+endSize || pos >= len(raw) {
+		return parseGame(path)
+	}
+	end := make([]byte, 1+endSize)
+	if _, err := f.ReadAt(end, int64(15+rawLen-1-endSize)); err != nil || end[0] != 0x39 {
+		return parseGame(path)
+	}
+	g := Game{Codes: gameStartCodes(raw[pos:min(len(raw), pos+1+sizes[0x36])]), Winner: -1, Quitter: -1}
+	if len(g.Codes) != 2 {
+		return parseGame(path) // only 1v1s are worth the shortcut; let parseGame decide the rest
+	}
+	if g.Quitter = int(int8(end[2])); g.Quitter != -1 {
+		return g, nil
+	}
+	for port := range g.Codes {
+		if port < 4 && int8(end[3+port]) == 0 {
+			g.Winner = port
+			return g, nil
+		}
+	}
+	return parseGame(path) // no placement winner (e.g. a timeout): compare stocks and percent
 }
 
 // Game is the outcome of a finished replay. Winner and Quitter are -1 when there is none.

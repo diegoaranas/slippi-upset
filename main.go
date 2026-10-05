@@ -37,7 +37,7 @@ var (
 	soundCurrent = "sounds/congratulations.wav" // "Congratulations!" - opp current rating > yours
 	soundWin     = "sounds/complete.wav"        // "Complete!" - any other win
 	// First game vs a new opponent:
-	soundChallenger = "sounds/challenger.wav" // Challenger Approaching jingle - they're rated higher
+	soundChallenger = "sounds/challenger.wav" // Challenger Approaching jingle - see announceOpponent for when
 	soundConnect    = ""                      // everyone else (e.g. sounds/versus.wav); "" = silent
 	// Opponent quits (resets) mid-game:
 	soundQuit = "sounds/no_contest.wav" // "No contest!"
@@ -221,21 +221,53 @@ func fileExists(p string) bool {
 	return err == nil
 }
 
-func announceOpponent(opp string) {
+// announceOpponent plays the Challenger Approaching jingle at the start of the first
+// game against a new opponent who looks stronger than you:
+//   - unranked: their current rating or their best season beats yours;
+//   - Ranked, where their current rating is already on screen, only for what it hides:
+//     their best previous season beats your best, or they have more wins against you
+//     than you against them in the replays on this computer (a "hidden boss").
+func announceOpponent(opp string, ranked bool) {
+	wins, losses, complete := history.record(opp)
+	h2h := fmt.Sprintf("you %d-%d", wins, losses)
+	if !complete {
+		h2h += " so far"
+	}
+	mode := "unranked"
+	if ranked {
+		mode = "ranked"
+	}
+
 	mine, err := fetchRatings(myCode)
 	var theirs Ratings
 	if err == nil {
 		theirs, err = fetchRatings(opp)
 	}
+	var why []string
+	switch {
+	case ranked:
+		if err == nil && higher(theirs.PastPeak, mine.Peak) {
+			why = append(why, "past season "+fmtRating(theirs.PastPeak))
+		}
+		if losses > wins {
+			why = append(why, fmt.Sprintf("hidden boss: they lead %d-%d", losses, wins))
+		}
+	case err == nil && isHigher(mine, theirs):
+		why = append(why, "")
+	}
+
+	ratings := fmt.Sprintf("%s (peak %s)", fmtRating(theirs.Current), fmtRating(theirs.Peak))
 	if err != nil {
-		fmt.Printf("New opponent: %s  (rating lookup failed: %v)\n", opp, err)
-		return
+		ratings = fmt.Sprintf("(rating lookup failed: %v)", err)
 	}
 	tag, sound := "", soundConnect
-	if isHigher(mine, theirs) {
+	if len(why) > 0 {
 		tag, sound = "  >>> CHALLENGER APPROACHING", soundChallenger
+		if why[0] != "" {
+			tag += " (" + strings.Join(why, "; ") + ")"
+		}
 	}
-	fmt.Printf("New opponent: %s  %s (peak %s)%s\n", opp, fmtRating(theirs.Current), fmtRating(theirs.Peak), tag)
+	fmt.Printf("New opponent: %s  %s  %s  %s%s\n", opp, ratings, mode, h2h, tag)
 	play(sound)
 }
 
@@ -307,17 +339,17 @@ func watch() {
 				}
 				path := filepath.Join(d, e.Name())
 				if !seen[path] { // game just started
-					if codes := startCodes(path); codes != nil {
+					if start, ok := readStart(path); ok {
 						seen[path] = true
 						var opps []string
-						for _, c := range codes {
+						for _, c := range start.Codes {
 							if !isMe(c) {
 								opps = append(opps, c)
 							}
 						}
-						if len(codes) == 2 && len(opps) == 1 && opps[0] != lastOpp {
+						if len(start.Codes) == 2 && len(opps) == 1 && opps[0] != lastOpp {
 							lastOpp = opps[0]
-							announceOpponent(lastOpp)
+							announceOpponent(lastOpp, start.Ranked)
 						}
 					}
 				}
@@ -326,6 +358,8 @@ func watch() {
 					if err := handle(path); err != nil {
 						fmt.Printf("%s: error: %v\n", e.Name(), err)
 					}
+					history.add(path)
+					go history.save()
 				}
 			}
 		}
@@ -381,5 +415,7 @@ func main() {
 		time.Sleep(3 * time.Second) // let the async sound finish
 		return
 	}
+	history = loadHistory(myCode)
+	go history.scan()
 	watch()
 }

@@ -5,12 +5,20 @@ play, and it reacts to who you're playing and whether you beat them:
 
 | When | Sound |
 |---|---|
-| Game 1 starts against someone rated higher than you | *Challenger Approaching* jingle |
+| Game 1 starts against someone who looks stronger than you (see below) | *Challenger Approaching* jingle |
 | You beat the highest-rated opponent you've ever beaten | "A new record!" |
 | You beat someone whose best season beats your best season | "Wow! Incredible!" |
 | You beat someone whose current rating beats yours | "Congratulations!" |
 | Any other win | "Complete!" |
 | Your opponent quits (resets) mid-game | "No contest!" |
+
+"Looks stronger" depends on the mode:
+
+- **Unranked:** their current rating or their best season beats yours.
+- **Ranked:** their current rating is already on screen, so the jingle only warns
+  about what it hides: their best *previous* season beats your best, or they have
+  more wins against you than you against them in the replays on your computer
+  (a "hidden boss" who doesn't play much Ranked).
 
 Only the first matching win sound plays. Losses, your own quits and doubles are silent.
 Ratings come from slippi.gg, so it works for ranked and unranked games alike.
@@ -77,12 +85,16 @@ Everything is at the top of `main.go` (rebuild after changing it):
 Your record is kept in `record.json` next to the program. It starts at 0, so
 your first win sets it. Delete the file to reset.
 
+Your head-to-head records are cached in `history.json`. The first run reads
+every replay in your replay folder once, in the background (a few seconds for
+thousands of replays); later runs only read new ones. Delete the file to rebuild it.
+
 ## How it works
 
 Slippi writes a replay file as each game is played. It checks the
 replay folder once a second:
 
-- **Game starts:** reads the first 2 KB of the new file to get the connect codes.
+- **Game starts:** reads the first 2 KB of the new file to get the connect codes and whether it's a Ranked match.
 - **Game ends:** Slippi fills in the replay's length header. It then reads the replay once to find the winner and looks up both players' ratings.
 
 It makes no network requests during a game and runs at below-normal CPU
