@@ -6,7 +6,7 @@ play, and it reacts to who you're playing and whether you beat them:
 | When | Sound |
 |---|---|
 | Game 1 starts against someone rated above you (see below) | *Challenger Approaching* jingle |
-| Game 1 starts against a "hidden boss" (see below) | "Giga Bowser!" (Melee's own hidden boss) |
+| Game 1 starts against a "hidden boss" (see below) | Bowser's trophy breaking into Giga Bowser (Adventure mode) |
 | You beat the highest-rated opponent you've ever beaten | "A new record!" |
 | You beat someone whose best season beats your best season | "Wow! Incredible!" |
 | You beat someone whose current rating beats yours | "Congratulations!" |
@@ -53,8 +53,12 @@ back to ALSA.
 macOS blocks downloaded apps that aren't signed. After extracting, run
 `xattr -d com.apple.quarantine upset` once to allow it.
 
-On first run it downloads the announcer clips. They're Nintendo's, so they aren't
-included here; it fetches the community rips from [The Sounds Resource](https://sounds.spriters-resource.com/gamecube/ssbm/).
+On first run it extracts the announcer clips from your own Melee disc image: the
+`.iso` Slippi Launcher plays (pass `--iso path\to\game.iso` to use another). They're
+Nintendo's, so they aren't included here. Compressed images (`.ciso`, `.rvz`, NKit)
+aren't supported; if it can't read your disc image, it tries to download the
+community rips from [The Sounds Resource](https://sounds.spriters-resource.com/gamecube/ssbm/)
+instead (all but the hidden-boss sound).
 
 Windows may warn that the app is from an unknown publisher, because it isn't
 code-signed. Click **More info → Run anyway**, or build it yourself (below).
@@ -73,7 +77,7 @@ go build .
 That builds `upset.exe` on Windows or `upset` on Linux and macOS. To build the Windows .exe
 from another system: `GOOS=windows GOARCH=amd64 go build .`
 
-The first run downloads the clips to `sounds/` at half volume. To re-download
+The first run extracts the clips to `sounds/` at half volume. To re-extract
 them at full volume: `upset --get-sounds --volume 1`.
 
 ```

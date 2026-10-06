@@ -2,7 +2,7 @@
 //
 // Run it in a terminal while playing:   upset   (or double-click upset.exe)
 // Test it on an existing replay:        upset --test path/to/Game.slp
-// Re-download the sounds:               upset --get-sounds --volume 1
+// Re-extract the sounds:                upset --get-sounds --volume 1   (from your Melee .iso)
 //
 // Windows, Linux and macOS. It checks the replay folder every second, reads the first 2 KB
 // of a replay when a game starts and the whole replay once after it ends, so it
@@ -28,6 +28,7 @@ import (
 var (
 	myCode      = ""  // e.g. "ABCD#123"; "" = read it from Slippi Launcher
 	replayDir   = ""  // e.g. `D:\Replays`; "" = read it from Slippi Launcher's settings
+	isoPath     = ""  // your Melee .iso, where the sounds come from; "" = the one Slippi Launcher uses
 	pollSeconds = 1.0 // how often to check the replay folder
 
 	// Any .wav, .mp3, .ogg or .flac file works, relative to the folder upset.exe is in.
@@ -38,7 +39,7 @@ var (
 	soundWin     = "sounds/complete.wav"        // "Complete!" - any other win
 	// First game vs a new opponent:
 	soundChallenger = "sounds/challenger.wav"  // Challenger Approaching jingle - rated above you (see assess)
-	soundHiddenBoss = "sounds/hidden_boss.wav" // "Giga Bowser!" - not rated above you, but leads you head-to-head (soundChallenger if missing)
+	soundHiddenBoss = "sounds/hidden_boss.wav" // trophy breaking into Giga Bowser - not rated above you, but leads you head-to-head (soundChallenger if missing)
 	soundConnect    = ""                       // everyone else (e.g. sounds/versus.wav); "" = silent
 	// Opponent quits (resets) mid-game:
 	soundQuit = "sounds/no_contest.wav" // "No contest!"
@@ -94,17 +95,26 @@ func detectCode() (string, error) {
 	return "", errors.New("Couldn't find your connect code. Log in to Slippi Launcher, or set myCode in main.go.")
 }
 
+// launcherSettings is the part of Slippi Launcher's Settings file this program uses.
+type launcherSettings struct {
+	Settings struct {
+		RootSlpPath string `json:"rootSlpPath"`
+		IsoPath     string `json:"isoPath"`
+	} `json:"settings"`
+}
+
+func readLauncherSettings() launcherSettings {
+	var s launcherSettings
+	if data, err := os.ReadFile(filepath.Join(launcherDir(), "Settings")); err == nil {
+		json.Unmarshal(data, &s)
+	}
+	return s
+}
+
 // detectReplayDir returns Slippi Launcher's replay folder setting, or its default.
 func detectReplayDir() string {
-	var s struct {
-		Settings struct {
-			RootSlpPath string `json:"rootSlpPath"`
-		} `json:"settings"`
-	}
-	if data, err := os.ReadFile(filepath.Join(launcherDir(), "Settings")); err == nil {
-		if json.Unmarshal(data, &s) == nil && s.Settings.RootSlpPath != "" {
-			return s.Settings.RootSlpPath
-		}
+	if p := readLauncherSettings().Settings.RootSlpPath; p != "" {
+		return p
 	}
 	return defaultReplayDir()
 }
@@ -328,7 +338,26 @@ func replayDirs() ([]string, error) {
 	return dirs, nil
 }
 
-// ensureSounds downloads the announcer clips if any are missing.
+// getSounds extracts the announcer clips from your Melee disc image (the one Slippi
+// Launcher uses, or isoPath), falling back to downloading the community rips.
+func getSounds(volume float64) error {
+	iso := isoPath
+	if iso == "" {
+		iso = readLauncherSettings().Settings.IsoPath
+	}
+	if iso != "" {
+		err := extractSounds(iso, inHere("sounds"), volume)
+		if err == nil {
+			return nil
+		}
+		fmt.Printf("Couldn't read the sounds from your Melee disc image (%v). Trying to download them instead...\n", err)
+	} else {
+		fmt.Println("No Melee disc image set in Slippi Launcher (or --iso). Trying to download the sounds instead...")
+	}
+	return downloadSounds(inHere("sounds"), volume)
+}
+
+// ensureSounds gets the announcer clips if any are missing.
 func ensureSounds() {
 	var missing []string
 	for _, s := range []string{soundRecord, soundPeak, soundCurrent, soundWin, soundChallenger, soundHiddenBoss, soundConnect, soundQuit} {
@@ -337,9 +366,9 @@ func ensureSounds() {
 		}
 	}
 	if len(missing) > 0 {
-		fmt.Printf("Missing sounds: %s. Downloading them now (one time)...\n", strings.Join(missing, ", "))
-		if err := downloadSounds(inHere("sounds"), 0.5); err != nil {
-			fmt.Printf("Couldn't download the sounds (%v). Alerts for missing files will be silent.\n", err)
+		fmt.Printf("Missing sounds: %s. Getting them now (one time)...\n", strings.Join(missing, ", "))
+		if err := getSounds(0.5); err != nil {
+			fmt.Printf("Couldn't get the sounds (%v). Alerts for missing files will be silent.\n", err)
 		}
 	}
 }
@@ -410,8 +439,9 @@ func fail(msg string) {
 
 func main() {
 	test := flag.String("test", "", "check a `replay` you've already played instead of watching")
-	getSounds := flag.Bool("get-sounds", false, "(re)download the announcer clips to sounds/ and exit")
+	resetSounds := flag.Bool("get-sounds", false, "(re)extract the announcer clips to sounds/ and exit")
 	volume := flag.Float64("volume", 0.5, "volume for --get-sounds (1 = original)")
+	flag.StringVar(&isoPath, "iso", isoPath, "your Melee `disc image` (.iso), if not the one set in Slippi Launcher")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
 
@@ -420,8 +450,8 @@ func main() {
 		return
 	}
 
-	if *getSounds {
-		if err := downloadSounds(inHere("sounds"), *volume); err != nil {
+	if *resetSounds {
+		if err := getSounds(*volume); err != nil {
 			fail(err.Error())
 		}
 		return
