@@ -38,7 +38,7 @@ var (
 	soundWin     = "sounds/complete.wav"        // "Complete!" - any other win
 	// First game vs a new opponent:
 	soundChallenger = "sounds/challenger.wav"  // Challenger Approaching jingle - rated above you (see assess)
-	soundHiddenBoss = "sounds/hidden_boss.wav" // not rated above you, but leads you head-to-head; falls back to soundChallenger if missing
+	soundHiddenBoss = "sounds/hidden_boss.wav" // "Giga Bowser!" - not rated above you, but leads you head-to-head (soundChallenger if missing)
 	soundConnect    = ""                       // everyone else (e.g. sounds/versus.wav); "" = silent
 	// Opponent quits (resets) mid-game:
 	soundQuit = "sounds/no_contest.wav" // "No contest!"
@@ -331,7 +331,7 @@ func replayDirs() ([]string, error) {
 // ensureSounds downloads the announcer clips if any are missing.
 func ensureSounds() {
 	var missing []string
-	for _, s := range []string{soundRecord, soundPeak, soundCurrent, soundWin, soundChallenger, soundConnect, soundQuit} {
+	for _, s := range []string{soundRecord, soundPeak, soundCurrent, soundWin, soundChallenger, soundHiddenBoss, soundConnect, soundQuit} {
 		if s != "" && !fileExists(inHere(s)) {
 			missing = append(missing, filepath.Base(s))
 		}

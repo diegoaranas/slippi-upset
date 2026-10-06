@@ -6,7 +6,7 @@ play, and it reacts to who you're playing and whether you beat them:
 | When | Sound |
 |---|---|
 | Game 1 starts against someone rated above you (see below) | *Challenger Approaching* jingle |
-| Game 1 starts against a "hidden boss" (see below) | hidden-boss sound (the jingle until it's set up) |
+| Game 1 starts against a "hidden boss" (see below) | "Giga Bowser!" (Melee's own hidden boss) |
 | You beat the highest-rated opponent you've ever beaten | "A new record!" |
 | You beat someone whose best season beats your best season | "Wow! Incredible!" |
 | You beat someone whose current rating beats yours | "Congratulations!" |

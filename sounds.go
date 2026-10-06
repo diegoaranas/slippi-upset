@@ -4,7 +4,7 @@ package main
 //
 // The clips are Nintendo's, so they aren't included in this repo. This fetches the
 // community rips from The Sounds Resource (https://sounds.spriters-resource.com),
-// pulls out the seven clips, and saves them at reduced volume.
+// pulls out the clips listed below, and saves them at reduced volume.
 
 import (
 	"archive/zip"
@@ -35,6 +35,7 @@ var clipPacks = []struct {
 		{"nr_1p06.dsp.wav", "complete.wav"},        // "Complete!"
 		{"nr_1p0a.dsp.wav", "versus.wav"},          // "Versus!"
 		{"nr_vs00.dsp.wav", "no_contest.wav"},      // "No contest!"
+		{"nr_name08.dsp.wav", "hidden_boss.wav"},   // "Giga Bowser!"
 	}},
 	{"/gamecube/ssbm/asset/394097/", []clip{ // Fanfares
 		{"s_newcom.hps.wav", "challenger.wav"}, // Challenger Approaching jingle
