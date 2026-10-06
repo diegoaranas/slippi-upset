@@ -20,6 +20,17 @@ func TestDecodeDSP(t *testing.T) {
 	}
 }
 
+func TestTrimStart(t *testing.T) {
+	ch := make([]int16, 100)
+	for i := range ch {
+		ch[i] = 1000
+	}
+	s := sound{rate: 40, chans: [][]int16{ch}}.trimStart(1) // 40 samples per second: cut 40, fade over 2
+	if got := s.chans[0]; len(got) != 60 || got[0] != 0 || got[1] != 500 || got[2] != 1000 || ch[40] != 1000 {
+		t.Errorf("trimStart = len %d, starts %v; original changed: %v", len(got), got[:3], ch[40] != 1000)
+	}
+}
+
 func TestDiscFiles(t *testing.T) {
 	img := make([]byte, 0x500)
 	be.PutUint32(img[0x1C:], 0xC2339F3D)

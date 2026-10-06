@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -201,6 +202,22 @@ func decodeHPS(d []byte) (sound, error) {
 	return s, nil
 }
 
+// trimStart drops the first seconds of the sound and fades the new start in over
+// 50 ms, so the cut doesn't click.
+func (s sound) trimStart(seconds float64) sound {
+	skip := min(int(seconds*float64(s.rate)), len(s.chans[0]))
+	fade := min(s.rate/20, len(s.chans[0])-skip)
+	out := sound{rate: s.rate}
+	for _, ch := range s.chans {
+		c := slices.Clone(ch[skip:])
+		for i := range fade {
+			c[i] = int16(int(c[i]) * i / fade)
+		}
+		out.chans = append(out.chans, c)
+	}
+	return out
+}
+
 // wav encodes the sound as a 16-bit PCM .wav file, scaled by volume.
 func (s sound) wav(volume float64) []byte {
 	nch, n := len(s.chans), len(s.chans[0])
@@ -231,17 +248,18 @@ type isoClip struct {
 	file  string
 	index int
 	dst   string
+	from  float64 // seconds to cut from the start (0 = the whole sound)
 }
 
 var isoClips = []isoClip{
-	{"audio/us/nr_1p.ssm", 0x00, "new_record.wav"},      // "A new record!"
-	{"audio/us/nr_1p.ssm", 0x05, "incredible.wav"},      // "Wow! Incredible!"
-	{"audio/us/nr_1p.ssm", 0x01, "congratulations.wav"}, // "Congratulations!"
-	{"audio/us/nr_1p.ssm", 0x06, "complete.wav"},        // "Complete!"
-	{"audio/us/nr_1p.ssm", 0x0A, "versus.wav"},          // "Versus!"
-	{"audio/us/nr_vs.ssm", 0x00, "no_contest.wav"},      // "No contest!"
-	{"audio/s_newcom.hps", 0, "challenger.wav"},         // Challenger Approaching jingle
-	{"audio/vl_last_v2.hps", 0, "hidden_boss.wav"},      // Adventure: Bowser's trophy breaking into Giga Bowser
+	{"audio/us/nr_1p.ssm", 0x00, "new_record.wav", 0},      // "A new record!"
+	{"audio/us/nr_1p.ssm", 0x05, "incredible.wav", 0},      // "Wow! Incredible!"
+	{"audio/us/nr_1p.ssm", 0x01, "congratulations.wav", 0}, // "Congratulations!"
+	{"audio/us/nr_1p.ssm", 0x06, "complete.wav", 0},        // "Complete!"
+	{"audio/us/nr_1p.ssm", 0x0A, "versus.wav", 0},          // "Versus!"
+	{"audio/us/nr_vs.ssm", 0x00, "no_contest.wav", 0},      // "No contest!"
+	{"audio/s_newcom.hps", 0, "challenger.wav", 0},         // Challenger Approaching jingle
+	{"audio/vl_last_v2.hps", 0, "hidden_boss.wav", 5.8},    // Adventure: Bowser's trophy breaking into Giga Bowser (its last 3.5 s)
 }
 
 // extractSounds writes the announcer clips from the user's Melee disc image to outDir.
@@ -280,6 +298,9 @@ func extractSounds(isoPath, outDir string, volume float64) error {
 		}
 		if err != nil {
 			return fmt.Errorf("%s: %w", path, err)
+		}
+		if c.from > 0 {
+			s = s.trimStart(c.from)
 		}
 		if err := os.WriteFile(filepath.Join(outDir, c.dst), s.wav(volume), 0o644); err != nil {
 			return err
