@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -11,7 +12,7 @@ import (
 )
 
 const (
-	gameStartSize = 0x221 + 0xA*4
+	gameStartSize = matchIDOffset + 51
 	postFrameSize = 0x22
 	gameEndSize   = 6
 )
@@ -25,7 +26,7 @@ func postFrame(port, stocks byte, pct float32) []byte {
 }
 
 // buildReplay writes a minimal 1v1 replay between ports 0 and 1.
-func buildReplay(t *testing.T, stocks0, stocks1 byte, pct0, pct1 float32, end []byte) string {
+func buildReplay(t *testing.T, stocks0, stocks1 byte, pct0, pct1 float32, end []byte, matchID string) string {
 	t.Helper()
 	var raw bytes.Buffer
 	sizes := [][3]byte{{0x36, 0, 0}, {0x38, 0, 0}, {0x39, 0, 0}}
@@ -40,6 +41,7 @@ func buildReplay(t *testing.T, stocks0, stocks1 byte, pct0, pct1 float32, end []
 	gs[0] = 0x36
 	copy(gs[0x221:], "ABCD\x81\x94123") // Shift-JIS fullwidth '#'
 	copy(gs[0x221+0xA:], "EFGH\x81\x94456")
+	copy(gs[matchIDOffset:], matchID)
 	raw.Write(gs)
 	raw.Write(postFrame(0, stocks0, pct0))
 	raw.Write(postFrame(1, stocks1, pct1))
@@ -74,7 +76,7 @@ func TestParseGame(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			path := buildReplay(t, c.s0, c.s1, c.p0, c.p1, c.end)
+			path := buildReplay(t, c.s0, c.s1, c.p0, c.p1, c.end, "mode.unranked-2026-09-23T21:30:32.10-0")
 			g, err := parseGame(path)
 			if err != nil {
 				t.Fatal(err)
@@ -88,11 +90,78 @@ func TestParseGame(t *testing.T) {
 			if rawLength(path) == 0 {
 				t.Error("rawLength = 0 for a finished replay")
 			}
-			codes := startCodes(path)
-			if len(codes) != 2 || codes[0] != "ABCD#123" || codes[1] != "EFGH#456" {
-				t.Errorf("startCodes = %v", codes)
+			start, ok := readStart(path)
+			if !ok || len(start.Codes) != 2 || start.Codes[0] != "ABCD#123" || start.Codes[1] != "EFGH#456" || start.Ranked {
+				t.Errorf("readStart = %+v, %v", start, ok)
+			}
+			q, err := quickGame(path)
+			if err != nil || q.Winner != g.Winner || q.Quitter != g.Quitter || q.Codes[1] != g.Codes[1] {
+				t.Errorf("quickGame = %+v, %v; parseGame = %+v", q, err, g)
 			}
 		})
+	}
+}
+
+func TestRanked(t *testing.T) {
+	for id, want := range map[string]bool{
+		"mode.ranked-2026-09-23T21:30:32.10-0":   true,
+		"mode.unranked-2026-09-23T21:30:32.10-0": false,
+		"mode.direct-2026-09-23T21:30:32.10-0":   false,
+		"":                                       false, // replays from before Slippi 3.14
+	} {
+		path := buildReplay(t, 1, 0, 0, 0, []byte{2, 0xFF, 0, 1, 0xFF, 0xFF}, id)
+		if start, ok := readStart(path); !ok || start.Ranked != want {
+			t.Errorf("%q: Ranked = %v, ok = %v; want %v", id, start.Ranked, ok, want)
+		}
+	}
+}
+
+func TestHistoryRecord(t *testing.T) {
+	h := &History{me: "ABCD#123", games: map[string]histGame{}}
+	games := []Game{
+		{Codes: map[int]string{0: "ABCD#123", 1: "EFGH#456"}, Winner: 1, Quitter: -1}, // loss
+		{Codes: map[int]string{0: "EFGH#456", 1: "abcd#123"}, Winner: 0, Quitter: -1}, // loss, code case differs
+		{Codes: map[int]string{0: "ABCD#123", 1: "EFGH#456"}, Winner: 0, Quitter: -1}, // win
+		{Codes: map[int]string{0: "ABCD#123", 1: "EFGH#456"}, Winner: -1, Quitter: 1}, // they quit: no result
+		{Codes: map[int]string{0: "IJKL#789", 1: "EFGH#456"}, Winner: 1, Quitter: -1}, // not your game
+	}
+	for i, g := range games {
+		h.games[fmt.Sprint(i)] = h.result(g)
+	}
+	if w, l, _ := h.record("efgh#456"); w != 1 || l != 2 {
+		t.Errorf("record = %d-%d; want 1-2", w, l)
+	}
+	if w, l, _ := h.record("IJKL#789"); w != 0 || l != 0 {
+		t.Errorf("record vs a stranger = %d-%d; want 0-0", w, l)
+	}
+}
+
+func TestAssess(t *testing.T) {
+	f := func(x float64) *float64 { return &x }
+	me := Ratings{Current: f(2200), Peak: f(2200), PastPeak: f(2100)}
+	cases := []struct {
+		name          string
+		theirs        Ratings
+		wins, losses  int
+		ranked        bool
+		rated, hidden bool
+	}{
+		{"unranked, higher current", Ratings{Current: f(2300), Peak: f(2300)}, 0, 0, false, true, false},
+		{"ranked, higher current only (on screen)", Ratings{Current: f(2300), Peak: f(2300)}, 0, 0, true, false, false},
+		{"ranked, higher past season", Ratings{Current: f(1500), Peak: f(2400), PastPeak: f(2400)}, 0, 0, true, true, false},
+		{"unranked, lower but leads", Ratings{Current: f(1900), Peak: f(1900), PastPeak: f(1800)}, 10, 12, false, false, true},
+		{"ranked, lower but leads", Ratings{Current: f(1900), Peak: f(1900)}, 0, 1, true, false, true},
+		{"higher and leads: not hidden", Ratings{Current: f(2300), Peak: f(2300)}, 1, 5, false, true, false},
+		{"tied head-to-head", Ratings{Current: f(1900), Peak: f(1900)}, 3, 3, false, false, false},
+	}
+	for _, c := range cases {
+		_, rated, hidden := assess(me, c.theirs, true, c.wins, c.losses, c.ranked)
+		if rated != c.rated || hidden != c.hidden {
+			t.Errorf("%s: rated, hidden = %v, %v; want %v, %v", c.name, rated, hidden, c.rated, c.hidden)
+		}
+	}
+	if _, rated, hidden := assess(me, Ratings{}, false, 0, 2, true); rated || !hidden {
+		t.Errorf("lookup failed but they lead: rated, hidden = %v, %v; want false, true", rated, hidden)
 	}
 }
 

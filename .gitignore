@@ -13,6 +13,8 @@ node_modules/
 
 # Local state: your personal best-win record, rewritten while playing
 record.json
+history.json
+history.json.tmp
 
 # Nintendo audio: not redistributed, fetched on first run
 sounds/

@@ -5,12 +5,33 @@ play, and it reacts to who you're playing and whether you beat them:
 
 | When | Sound |
 |---|---|
-| Game 1 starts against someone rated higher than you | *Challenger Approaching* jingle |
+| Game 1 starts against someone rated above you (see below) | *Challenger Approaching* jingle |
+| Game 1 starts against a "hidden boss" (see below) | Bowser's trophy breaking into Giga Bowser (Adventure mode) |
 | You beat the highest-rated opponent you've ever beaten | "A new record!" |
 | You beat someone whose best season beats your best season | "Wow! Incredible!" |
 | You beat someone whose current rating beats yours | "Congratulations!" |
 | Any other win | "Complete!" |
 | Your opponent quits (resets) mid-game | "No contest!" |
+
+"Rated above you" depends on the mode:
+
+- **Unranked:** their current rating or their best season beats yours.
+- **Ranked:** their current rating is already on screen, so only what it hides
+  counts: their best *previous* season beats your best.
+
+A **hidden boss** isn't rated above you but has more wins against you than you
+against them in the replays on your computer (ranked and unranked), like a strong
+player who rarely plays Ranked. This works in both modes.
+
+When a new opponent joins, the window lists every check and whether it was met:
+
+```
+New opponent: AE#570  1938.0 (peak 1938.0)  unranked  >>> HIDDEN BOSS
+    current rating  1938.0 vs your 2210.1          no
+    best season     1938.0 vs your 2210.1          no
+    past season     1806.6 vs your 2210.1          no   (ranked only)
+    head-to-head    you 10-12                      YES
+```
 
 Only the first matching win sound plays. Losses, your own quits and doubles are silent.
 Ratings come from slippi.gg, so it works for ranked and unranked games alike.
@@ -32,8 +53,12 @@ back to ALSA.
 macOS blocks downloaded apps that aren't signed. After extracting, run
 `xattr -d com.apple.quarantine upset` once to allow it.
 
-On first run it downloads the announcer clips. They're Nintendo's, so they aren't
-included here; it fetches the community rips from [The Sounds Resource](https://sounds.spriters-resource.com/gamecube/ssbm/).
+On first run it extracts the announcer clips from your own Melee disc image: the
+`.iso` Slippi Launcher plays (pass `--iso path\to\game.iso` to use another). They're
+Nintendo's, so they aren't included here. Compressed images (`.ciso`, `.rvz`, NKit)
+aren't supported; if it can't read your disc image, it tries to download the
+community rips from [The Sounds Resource](https://sounds.spriters-resource.com/gamecube/ssbm/)
+instead (all but the hidden-boss sound).
 
 Windows may warn that the app is from an unknown publisher, because it isn't
 code-signed. Click **More info → Run anyway**, or build it yourself (below).
@@ -52,12 +77,16 @@ go build .
 That builds `upset.exe` on Windows or `upset` on Linux and macOS. To build the Windows .exe
 from another system: `GOOS=windows GOARCH=amd64 go build .`
 
-The first run downloads the clips to `sounds/` at half volume. To re-download
+The first run extracts the clips to `sounds/` at half volume. To re-extract
 them at full volume: `upset --get-sounds --volume 1`.
 
 ```
 Watching C:\Users\you\Documents\Slippi for new games as ABCD#123... (Ctrl+C to stop)
-New opponent: EFGH#456  2210.4 (peak 2301.7)  >>> CHALLENGER APPROACHING
+New opponent: EFGH#456  2210.4 (peak 2301.7)  unranked  >>> CHALLENGER APPROACHING
+    current rating  2210.4 vs your 2146.6          YES
+    best season     2301.7 vs your 2146.6          YES
+    past season     2301.7 vs your 2146.6          YES  (ranked only)
+    head-to-head    you 0-0                        no
 Game_20260923T221106.slp: WIN vs EFGH#456  them 2210.4 (peak 2301.7)  you 2146.6 (peak 2146.6)  >>> NEW RECORD! (was 1950.3)
 ```
 
@@ -77,12 +106,16 @@ Everything is at the top of `main.go` (rebuild after changing it):
 Your record is kept in `record.json` next to the program. It starts at 0, so
 your first win sets it. Delete the file to reset.
 
+Your head-to-head records are cached in `history.json`. The first run reads
+every replay in your replay folder once, in the background (a few seconds for
+thousands of replays); later runs only read new ones. Delete the file to rebuild it.
+
 ## How it works
 
 Slippi writes a replay file as each game is played. It checks the
 replay folder once a second:
 
-- **Game starts:** reads the first 2 KB of the new file to get the connect codes.
+- **Game starts:** reads the first 2 KB of the new file to get the connect codes and whether it's a Ranked match.
 - **Game ends:** Slippi fills in the replay's length header. It then reads the replay once to find the winner and looks up both players' ratings.
 
 It makes no network requests during a game and runs at below-normal CPU

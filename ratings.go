@@ -17,9 +17,10 @@ const (
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-// Ratings are nil when unknown. Current is nil if unranked this season.
+// Ratings are nil when unknown. Current is nil if unranked this season. Peak is the
+// best season including the current one; PastPeak leaves the current season out.
 type Ratings struct {
-	Current, Peak *float64
+	Current, Peak, PastPeak *float64
 }
 
 type profile struct {
@@ -62,14 +63,14 @@ func fetchRatings(code string) (Ratings, error) {
 	if c := user.Current; c != nil && c.RatingUpdateCount > 0 {
 		r.Current = &c.RatingOrdinal
 	}
-	all := user.History
-	if r.Current != nil {
-		all = append(all, *user.Current)
-	}
-	for i := range all {
-		if all[i].RatingUpdateCount > 0 && (r.Peak == nil || all[i].RatingOrdinal > *r.Peak) {
-			r.Peak = &all[i].RatingOrdinal
+	for i := range user.History {
+		if s := &user.History[i]; s.RatingUpdateCount > 0 && (r.PastPeak == nil || s.RatingOrdinal > *r.PastPeak) {
+			r.PastPeak = &s.RatingOrdinal
 		}
+	}
+	r.Peak = r.PastPeak
+	if higher(r.Current, r.Peak) || r.Peak == nil {
+		r.Peak = r.Current
 	}
 	return r, nil
 }
@@ -77,12 +78,6 @@ func fetchRatings(code string) (Ratings, error) {
 // higher reports whether a is known and beats b.
 func higher(a, b *float64) bool {
 	return a != nil && b != nil && *a > *b
-}
-
-// isHigher uses the same rule as the win sounds: their current rating beats
-// yours, or their best season beats yours.
-func isHigher(mine, theirs Ratings) bool {
-	return higher(theirs.Current, mine.Current) || higher(theirs.Peak, mine.Peak)
 }
 
 func fmtRating(x *float64) string {

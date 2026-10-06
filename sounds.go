@@ -1,10 +1,12 @@
 package main
 
-// Downloads the Melee announcer clips into sounds/.
+// Downloads the Melee announcer clips into sounds/: the fallback for when they can't be
+// extracted from the user's own disc image (melee.go).
 //
 // The clips are Nintendo's, so they aren't included in this repo. This fetches the
 // community rips from The Sounds Resource (https://sounds.spriters-resource.com),
-// pulls out the seven clips, and saves them at reduced volume.
+// pulls out the clips listed below, and saves them at reduced volume. The hidden-boss
+// sound was never ripped there, so it only comes from the disc.
 
 import (
 	"archive/zip"
