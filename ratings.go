@@ -80,12 +80,6 @@ func higher(a, b *float64) bool {
 	return a != nil && b != nil && *a > *b
 }
 
-// isHigher uses the same rule as the win sounds: their current rating beats
-// yours, or their best season beats yours.
-func isHigher(mine, theirs Ratings) bool {
-	return higher(theirs.Current, mine.Current) || higher(theirs.Peak, mine.Peak)
-}
-
 func fmtRating(x *float64) string {
 	if x == nil {
 		return "unranked"

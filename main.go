@@ -37,8 +37,9 @@ var (
 	soundCurrent = "sounds/congratulations.wav" // "Congratulations!" - opp current rating > yours
 	soundWin     = "sounds/complete.wav"        // "Complete!" - any other win
 	// First game vs a new opponent:
-	soundChallenger = "sounds/challenger.wav" // Challenger Approaching jingle - see announceOpponent for when
-	soundConnect    = ""                      // everyone else (e.g. sounds/versus.wav); "" = silent
+	soundChallenger = "sounds/challenger.wav"  // Challenger Approaching jingle - rated above you (see assess)
+	soundHiddenBoss = "sounds/hidden_boss.wav" // not rated above you, but leads you head-to-head; falls back to soundChallenger if missing
+	soundConnect    = ""                       // everyone else (e.g. sounds/versus.wav); "" = silent
 	// Opponent quits (resets) mid-game:
 	soundQuit = "sounds/no_contest.wav" // "No contest!"
 
@@ -221,53 +222,84 @@ func fileExists(p string) bool {
 	return err == nil
 }
 
-// announceOpponent plays the Challenger Approaching jingle at the start of the first
-// game against a new opponent who looks stronger than you:
-//   - unranked: their current rating or their best season beats yours;
-//   - Ranked, where their current rating is already on screen, only for what it hides:
-//     their best previous season beats your best, or they have more wins against you
-//     than you against them in the replays on this computer (a "hidden boss").
+// criterion is one check made when a new opponent joins.
+type criterion struct {
+	name, detail string
+	met          bool
+	counts       bool // used in this mode
+}
+
+// assess runs every check against a new opponent. They're "rated above you" if a
+// rating check that counts in this mode is met:
+//   - unranked: their current rating, or their best season, beats yours;
+//   - Ranked, where their current rating is already on screen: only their best
+//     previous season beating your best.
+//
+// They're a "hidden boss" if they aren't rated above you but have more wins against
+// you than you against them in the replays on this computer.
+func assess(mine, theirs Ratings, ratingsOK bool, wins, losses int, ranked bool) (cs []criterion, rated, hidden bool) {
+	vs := func(a, b *float64) string {
+		if !ratingsOK {
+			return "rating lookup failed"
+		}
+		return fmt.Sprintf("%s vs your %s", fmtRating(a), fmtRating(b))
+	}
+	cs = []criterion{
+		{"current rating", vs(theirs.Current, mine.Current), ratingsOK && higher(theirs.Current, mine.Current), !ranked},
+		{"best season", vs(theirs.Peak, mine.Peak), ratingsOK && higher(theirs.Peak, mine.Peak), !ranked},
+		{"past season", vs(theirs.PastPeak, mine.Peak), ratingsOK && higher(theirs.PastPeak, mine.Peak), ranked},
+		{"head-to-head", fmt.Sprintf("you %d-%d", wins, losses), losses > wins, true},
+	}
+	for _, c := range cs[:3] {
+		rated = rated || (c.counts && c.met)
+	}
+	return cs, rated, !rated && cs[3].met
+}
+
+// announceOpponent prints every criterion for a new opponent and plays the
+// Challenger Approaching jingle if they're rated above you, or the hidden-boss
+// sound if they lead you head-to-head without being rated above you.
 func announceOpponent(opp string, ranked bool) {
 	wins, losses, complete := history.record(opp)
-	h2h := fmt.Sprintf("you %d-%d", wins, losses)
-	if !complete {
-		h2h += " so far"
-	}
-	mode := "unranked"
-	if ranked {
-		mode = "ranked"
-	}
-
 	mine, err := fetchRatings(myCode)
 	var theirs Ratings
 	if err == nil {
 		theirs, err = fetchRatings(opp)
 	}
-	var why []string
-	switch {
-	case ranked:
-		if err == nil && higher(theirs.PastPeak, mine.Peak) {
-			why = append(why, "past season "+fmtRating(theirs.PastPeak))
-		}
-		if losses > wins {
-			why = append(why, fmt.Sprintf("hidden boss: they lead %d-%d", losses, wins))
-		}
-	case err == nil && isHigher(mine, theirs):
-		why = append(why, "")
-	}
+	cs, rated, hidden := assess(mine, theirs, err == nil, wins, losses, ranked)
 
+	mode, other := "unranked", "ranked"
+	if ranked {
+		mode, other = "ranked", "unranked"
+	}
 	ratings := fmt.Sprintf("%s (peak %s)", fmtRating(theirs.Current), fmtRating(theirs.Peak))
 	if err != nil {
 		ratings = fmt.Sprintf("(rating lookup failed: %v)", err)
 	}
 	tag, sound := "", soundConnect
-	if len(why) > 0 {
+	switch {
+	case rated:
 		tag, sound = "  >>> CHALLENGER APPROACHING", soundChallenger
-		if why[0] != "" {
-			tag += " (" + strings.Join(why, "; ") + ")"
+	case hidden:
+		tag, sound = "  >>> HIDDEN BOSS", soundHiddenBoss
+		if !fileExists(inHere(sound)) {
+			sound = soundChallenger
 		}
 	}
-	fmt.Printf("New opponent: %s  %s  %s  %s%s\n", opp, ratings, mode, h2h, tag)
+	fmt.Printf("New opponent: %s  %s  %s%s\n", opp, ratings, mode, tag)
+	for _, c := range cs {
+		mark, note := "no", ""
+		if c.met {
+			mark = "YES"
+		}
+		if !c.counts {
+			note = "  (" + other + " only)"
+		}
+		if c.name == "head-to-head" && !complete {
+			note = "  (still reading your replays)"
+		}
+		fmt.Printf("    %-15s %-30s %-3s%s\n", c.name, c.detail, mark, note)
+	}
 	play(sound)
 }
 

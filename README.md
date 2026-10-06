@@ -5,20 +5,33 @@ play, and it reacts to who you're playing and whether you beat them:
 
 | When | Sound |
 |---|---|
-| Game 1 starts against someone who looks stronger than you (see below) | *Challenger Approaching* jingle |
+| Game 1 starts against someone rated above you (see below) | *Challenger Approaching* jingle |
+| Game 1 starts against a "hidden boss" (see below) | hidden-boss sound (the jingle until it's set up) |
 | You beat the highest-rated opponent you've ever beaten | "A new record!" |
 | You beat someone whose best season beats your best season | "Wow! Incredible!" |
 | You beat someone whose current rating beats yours | "Congratulations!" |
 | Any other win | "Complete!" |
 | Your opponent quits (resets) mid-game | "No contest!" |
 
-"Looks stronger" depends on the mode:
+"Rated above you" depends on the mode:
 
 - **Unranked:** their current rating or their best season beats yours.
-- **Ranked:** their current rating is already on screen, so the jingle only warns
-  about what it hides: their best *previous* season beats your best, or they have
-  more wins against you than you against them in the replays on your computer
-  (a "hidden boss" who doesn't play much Ranked).
+- **Ranked:** their current rating is already on screen, so only what it hides
+  counts: their best *previous* season beats your best.
+
+A **hidden boss** isn't rated above you but has more wins against you than you
+against them in the replays on your computer (ranked and unranked), like a strong
+player who rarely plays Ranked. This works in both modes.
+
+When a new opponent joins, the window lists every check and whether it was met:
+
+```
+New opponent: AE#570  1938.0 (peak 1938.0)  unranked  >>> HIDDEN BOSS
+    current rating  1938.0 vs your 2210.1          no
+    best season     1938.0 vs your 2210.1          no
+    past season     1806.6 vs your 2210.1          no   (ranked only)
+    head-to-head    you 10-12                      YES
+```
 
 Only the first matching win sound plays. Losses, your own quits and doubles are silent.
 Ratings come from slippi.gg, so it works for ranked and unranked games alike.
@@ -65,7 +78,11 @@ them at full volume: `upset --get-sounds --volume 1`.
 
 ```
 Watching C:\Users\you\Documents\Slippi for new games as ABCD#123... (Ctrl+C to stop)
-New opponent: EFGH#456  2210.4 (peak 2301.7)  >>> CHALLENGER APPROACHING
+New opponent: EFGH#456  2210.4 (peak 2301.7)  unranked  >>> CHALLENGER APPROACHING
+    current rating  2210.4 vs your 2146.6          YES
+    best season     2301.7 vs your 2146.6          YES
+    past season     2301.7 vs your 2146.6          YES  (ranked only)
+    head-to-head    you 0-0                        no
 Game_20260923T221106.slp: WIN vs EFGH#456  them 2210.4 (peak 2301.7)  you 2146.6 (peak 2146.6)  >>> NEW RECORD! (was 1950.3)
 ```
 

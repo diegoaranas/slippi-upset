@@ -136,6 +136,35 @@ func TestHistoryRecord(t *testing.T) {
 	}
 }
 
+func TestAssess(t *testing.T) {
+	f := func(x float64) *float64 { return &x }
+	me := Ratings{Current: f(2200), Peak: f(2200), PastPeak: f(2100)}
+	cases := []struct {
+		name          string
+		theirs        Ratings
+		wins, losses  int
+		ranked        bool
+		rated, hidden bool
+	}{
+		{"unranked, higher current", Ratings{Current: f(2300), Peak: f(2300)}, 0, 0, false, true, false},
+		{"ranked, higher current only (on screen)", Ratings{Current: f(2300), Peak: f(2300)}, 0, 0, true, false, false},
+		{"ranked, higher past season", Ratings{Current: f(1500), Peak: f(2400), PastPeak: f(2400)}, 0, 0, true, true, false},
+		{"unranked, lower but leads", Ratings{Current: f(1900), Peak: f(1900), PastPeak: f(1800)}, 10, 12, false, false, true},
+		{"ranked, lower but leads", Ratings{Current: f(1900), Peak: f(1900)}, 0, 1, true, false, true},
+		{"higher and leads: not hidden", Ratings{Current: f(2300), Peak: f(2300)}, 1, 5, false, true, false},
+		{"tied head-to-head", Ratings{Current: f(1900), Peak: f(1900)}, 3, 3, false, false, false},
+	}
+	for _, c := range cases {
+		_, rated, hidden := assess(me, c.theirs, true, c.wins, c.losses, c.ranked)
+		if rated != c.rated || hidden != c.hidden {
+			t.Errorf("%s: rated, hidden = %v, %v; want %v, %v", c.name, rated, hidden, c.rated, c.hidden)
+		}
+	}
+	if _, rated, hidden := assess(me, Ratings{}, false, 0, 2, true); rated || !hidden {
+		t.Errorf("lookup failed but they lead: rated, hidden = %v, %v; want false, true", rated, hidden)
+	}
+}
+
 func TestScaleWAV(t *testing.T) {
 	wav := []byte("RIFF\x00\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00data\x04\x00\x00\x00")
 	wav = binary.LittleEndian.AppendUint16(wav, 1000)
